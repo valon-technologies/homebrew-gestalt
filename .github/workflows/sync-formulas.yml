@@ -1,0 +1,46 @@
+name: Sync Formulas
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout tap
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Download formulas from gestalt
+        run: |
+          mkdir -p Formula
+          curl -fsSL \
+            https://raw.githubusercontent.com/valon-technologies/gestalt/main/Formula/gestalt.rb \
+            -o Formula/gestalt.rb
+          curl -fsSL \
+            https://raw.githubusercontent.com/valon-technologies/gestalt/main/Formula/gestaltd.rb \
+            -o Formula/gestaltd.rb
+
+      - name: Verify formula syntax
+        run: |
+          ruby -c Formula/gestalt.rb
+          ruby -c Formula/gestaltd.rb
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/gestalt.rb Formula/gestaltd.rb
+          if git diff --cached --quiet; then
+            echo "No formula changes to sync"
+            exit 0
+          fi
+
+          git commit -m "Sync formulas from gestalt"
+          git push
